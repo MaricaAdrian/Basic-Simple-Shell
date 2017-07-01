@@ -1,0 +1,147 @@
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+
+#define G_MAX_LENGTH 1000
+
+struct Files{
+
+
+    char content[G_MAX_LENGTH][G_MAX_LENGTH];
+    char name[G_MAX_LENGTH];
+    float size;
+    unsigned int number_of_lines;
+    unsigned int number_of_words;
+    struct Files *nextFile;
+
+};
+
+void read_file(struct Files *currentFile, char file[G_MAX_LENGTH]){
+
+    unsigned int counter = 0;
+    int i = 0;
+    char ch;
+    FILE *f = fopen(file, "r");
+    FILE *g = fopen(file, "r");
+
+    if (f == NULL)
+    {
+        printf("\nError opening file!");
+		return;
+    }
+
+
+    while (fscanf(f, " %255s", currentFile->content[counter]) == 1 && counter != G_MAX_LENGTH) {
+        ++counter;
+    }
+
+    currentFile->number_of_words = counter;
+
+    fclose(f);
+
+    while(!feof(g)){
+        ch = fgetc(g);
+        if(ch == '\n'){
+            currentFile->number_of_lines++;
+        }
+    }
+
+    fclose(f);
+
+}
+
+void read_directory(struct Files *currentDirectory){
+
+    struct Files *iterator = currentDirectory;
+
+    DIR *dp;
+    struct dirent *ep;
+    dp = opendir ("./");
+
+    if (dp != NULL){
+        while (ep = readdir (dp)){
+            if(strcmp(ep->d_name, ".") != 0 && strcmp(ep->d_name, "..") != 0){
+                while(iterator->nextFile != NULL)
+                    iterator = iterator->nextFile;
+                struct stat st;
+                struct Files *newValue = malloc(sizeof(struct Files));
+                stat(ep->d_name, &st);
+                iterator->nextFile = newValue;
+                strcpy(newValue->name, ep->d_name);
+                newValue->size = st.st_size;
+                newValue->nextFile = NULL;
+                read_file(newValue, newValue->name);
+            }
+
+        }
+
+        (void) closedir (dp);
+    }
+    else
+    perror ("Couldn't open the directory");
+
+    return;
+
+
+}
+
+void print_files(struct Files *currentDirectory, char content[G_MAX_LENGTH]){
+
+    struct Files *iterator = currentDirectory;
+
+
+    if(strcmp(content, "ls") == 0){
+        printf("\nFiles from current directory are: ");
+        while(iterator->nextFile != NULL){
+            printf("%s ", iterator->nextFile->name);
+            iterator = iterator->nextFile;
+        }
+        return;
+    }
+
+    if(strcmp(content, "ls -l") == 0){
+        printf("\n----------------------------------------------------\n");
+        printf("|%-20s|%-20s|%-10s|%-10s|\n", "Name", "Size", "Nr. words", "Nr. lines");
+        while(iterator->nextFile != NULL){
+            printf("|%-20s|%-20.0f|%-10d|%-10d|", iterator->nextFile->name, iterator->nextFile->size, iterator->nextFile->number_of_words, iterator->nextFile->number_of_lines);
+            iterator = iterator->nextFile;
+            printf("\n");
+        }
+        printf("----------------------------------------------------\n");
+        return;
+    }
+
+
+    printf("\nInvalid command. For all commands available type \"help\".");
+    return;
+
+
+}
+
+int main(void){
+
+    struct Files *currentDirectory = malloc(sizeof(struct Files));
+    currentDirectory->nextFile = NULL;
+    unsigned int started = 1;
+    char command[G_MAX_LENGTH];
+
+    while(started != 3){
+        if(started == 2){
+            printf("\nWrite your command: ");
+            scanf("%[^\n]", command);
+            print_files(currentDirectory, command);
+        }
+        if(started == 1){
+            printf("\nType \"start\", without quotes for program to start: ");
+            scanf("%[^\n]", command);
+            if(strcmp(command, "start") == 0){
+                read_directory(currentDirectory);
+                printf("\nAll files from current directory have been successfully read.");
+                started = 2;
+            } else {
+                printf("\nInvalid command. Program needs to be started first.");
+            }
+        }
+    }
+}
